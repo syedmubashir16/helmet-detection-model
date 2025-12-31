@@ -80,7 +80,7 @@ def main():
                     for result in results:
                         # Plot detection results (BGR numpy array)
                         res_plotted = result.plot()
-                        res_rgb = res_plotted[..., ::-1]  # Convert BGR → RGB
+                        res_rgb = Image.fromarray(res_plotted[..., ::-1])  # Convert to PIL
                         st.image(res_rgb, caption="Detected Image", use_container_width=True)
 
                     st.success("Detection Complete!")
