@@ -73,7 +73,6 @@ def main():
                 with st.spinner("Detecting..."):
                     results = model.predict(image, conf=confidence_threshold)
 
-                    # Draw detections using PIL instead of OpenCV
                     detected_image = image.copy()
                     draw = ImageDraw.Draw(detected_image)
 
@@ -86,7 +85,7 @@ def main():
                             unique, counts = np.unique(classes, return_counts=True)
                             class_counts = dict(zip(unique, counts))
 
-                            # Draw boxes + labels
+                            # Draw boxes + labels with PIL
                             for box in boxes:
                                 x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
                                 cls_id = int(box.cls[0])
