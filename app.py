@@ -1,6 +1,6 @@
 import streamlit as st
 from ultralytics import YOLO
-from PIL import Image
+from PIL import Image, ImageDraw
 import numpy as np
 
 # Streamlit page configuration
@@ -28,12 +28,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Cache the model so it loads only once
 @st.cache_resource
 def load_model():
     """Load YOLO model from best.pt in project root."""
     try:
-        model = YOLO("best.pt")   # Simplified path for Streamlit Cloud
+        model = YOLO("best.pt")
         return model
     except Exception as e:
         st.error(f"Error loading model: {e}")
@@ -58,34 +57,26 @@ def main():
     model = load_model()
 
     if model:
-        # File uploader
         uploaded_file = st.file_uploader(
             "Choose an image...",
             type=["jpg", "jpeg", "png", "bmp", "webp"]
         )
 
         if uploaded_file is not None:
-            # Display original image
             col1, col2 = st.columns(2)
 
             with col1:
-                image = Image.open(uploaded_file)
+                image = Image.open(uploaded_file).convert("RGB")
                 st.image(image, caption="Original Image", use_container_width=True)
 
-            # Perform detection
             with col2:
                 with st.spinner("Detecting..."):
                     results = model.predict(image, conf=confidence_threshold)
 
-                    for result in results:
-                        # Plot detection results (BGR numpy array)
-                        res_plotted = result.plot()
-                        res_rgb = Image.fromarray(res_plotted[..., ::-1])  # Convert to PIL
-                        st.image(res_rgb, caption="Detected Image", use_container_width=True)
+                    # Draw detections using PIL instead of OpenCV
+                    detected_image = image.copy()
+                    draw = ImageDraw.Draw(detected_image)
 
-                    st.success("Detection Complete!")
-
-                    # Detection summary
                     if results:
                         result = results[0]
                         boxes = result.boxes
@@ -95,12 +86,23 @@ def main():
                             unique, counts = np.unique(classes, return_counts=True)
                             class_counts = dict(zip(unique, counts))
 
+                            # Draw boxes + labels
+                            for box in boxes:
+                                x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
+                                cls_id = int(box.cls[0])
+                                label = class_names[cls_id]
+                                draw.rectangle([x1, y1, x2, y2], outline="red", width=3)
+                                draw.text((x1, y1), label, fill="red")
+
+                            st.image(detected_image, caption="Detected Image", use_container_width=True)
+                            st.success("Detection Complete!")
+
+                            # Detection summary
                             st.write("### Detection Summary:")
                             stats = []
                             for cls_id, count in class_counts.items():
                                 name = class_names[int(cls_id)]
                                 stats.append({"Object Type": name, "Count": count})
-
                             st.table(stats)
                         else:
                             st.warning("No objects detected.")
